@@ -1,1 +1,56 @@
 module TransactionHelper
+        
+open System.Data
+open System.Data.Common
+
+type TransactionContext = {
+    Connection : DbConnection
+    Transaction : DbTransaction option
+}
+
+type Transaction<'a> = Transaction of (TransactionContext -> 'a option)
+
+type TransactionBuilder(level: IsolationLevel) =
+    let confirmOpen (con: DbConnection) =
+        if con.State <> ConnectionState.Open then
+            con.Open()
+        con
+  
+    let run (Transaction block) context = block context
+    
+    let runDelay f context = run (f()) context
+    
+    let complete result (transaction: DbTransaction) =
+        match result with
+        | Some _ -> transaction.Commit()
+        | _ -> transaction.Rollback()
+        result
+  
+    member this.Return(result) = Transaction(fun _ -> Some result)
+  
+    member this.ReturnFrom(m) = m
+  
+    member this.Bind(m, f) = Transaction(fun context -> 
+        match run m context with
+        | Some out -> run (f out) context
+        | _ -> None)
+  
+    member this.Delay(f) = Transaction(fun context -> 
+        match context.Transaction with
+        | Some t -> 
+            let res = runDelay f context
+            complete res t
+        | None ->
+            let con = confirmOpen context.Connection
+            use trans = con.BeginTransaction ()
+            let res = runDelay f {Connection = con; Transaction = Some trans}
+            complete res trans)
+
+
+let transaction level = TransactionBuilder(level)
+
+let cancel = 
+    Transaction (fun _ -> None)
+
+let run (Transaction block) context = 
+    block context
