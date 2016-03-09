@@ -1,1 +1,5 @@
 REDIRECTS: ON
+NUGET
+  remote: http://api.nuget.org/v3/index.json
+  specs:
+    FSharp.Data.SqlClient (1.8.1)
