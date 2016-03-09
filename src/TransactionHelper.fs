@@ -1,17 +1,17 @@
 module TransactionHelper
         
 open System.Data
-open System.Data.Common
+open System.Data.SqlClient
 
 type TransactionContext = {
-    Connection : DbConnection
-    Transaction : DbTransaction option
+    Connection : SqlConnection
+    Transaction : SqlTransaction option
 }
 
 type Transaction<'a> = Transaction of (TransactionContext -> 'a option)
 
 type TransactionBuilder(level: IsolationLevel) =
-    let confirmOpen (con: DbConnection) =
+    let confirmOpen (con: SqlConnection) =
         if con.State <> ConnectionState.Open then
             con.Open()
         con
@@ -20,7 +20,7 @@ type TransactionBuilder(level: IsolationLevel) =
     
     let runDelay f context = run (f()) context
     
-    let complete result (transaction: DbTransaction) =
+    let complete result (transaction: SqlTransaction) =
         match result with
         | Some _ -> transaction.Commit()
         | _ -> transaction.Rollback()
