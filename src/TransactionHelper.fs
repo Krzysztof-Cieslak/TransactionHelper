@@ -38,8 +38,7 @@ type TransactionBuilder(level: IsolationLevel) =
     member this.Delay(f) = Transaction(fun context -> 
         match context.Transaction with
         | Some t -> 
-            let res = runDelay f context
-            complete res t
+            runDelay f context
         | None ->
             let con = confirmOpen context.Connection
             use trans = con.BeginTransaction ()
