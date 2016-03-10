@@ -16,7 +16,11 @@ type TransactionBuilder(level: IsolationLevel) =
             con.Open()
         con
   
-    let run (Transaction block) context = block context
+    let run (Transaction block) context = 
+        try
+            block context
+        with
+        | _ -> None 
     
     let runDelay f context = run (f()) context
     
@@ -51,5 +55,13 @@ let transaction level = TransactionBuilder(level)
 let cancel = 
     Transaction (fun _ -> None)
 
-let run (Transaction block) context = 
+let runTransaction (Transaction block) context = 
     block context
+
+let tx = transaction IsolationLevel.ReadCommitted
+
+let lift fn = Transaction (fn >> Some)
+
+let run cs trans = 
+    use conn = new SqlConnection(cs) 
+    runTransaction trans {Connection = conn; Transaction = None}
